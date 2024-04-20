@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./scraping-hub:/scraping-hub:cached
+    depends_on:
+      - dynamodb-local
+    entrypoint: [ "/entrypoint.sh" ]
+    command: [ "tail", "-f", "/dev/null" ]
+
+  dynamodb-local:
+    image: amazon/dynamodb-local
+    ports:
+      - "8000:8000"
+    volumes:
+      - "./data:/data"
+    command: [ "-jar", "DynamoDBLocal.jar", "-sharedDb", "-dbPath", "/data" ]
+
+  dynamodb-admin:
+    image: aaronshaf/dynamodb-admin
+    ports:
+      - "8001:8001"
+    environment:
+      - DYNAMO_ENDPOINT=http://dynamodb-local:8000
+
+  minio:
+    image: minio/minio
+    volumes:
+      - ./data/minio:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: miniouser
+      MINIO_ROOT_PASSWORD: password
+    command: server --console-address ":9001" /data
